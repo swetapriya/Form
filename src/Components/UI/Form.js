@@ -1,4 +1,4 @@
-import React, { useState }from "react";
+import React, { useState, Suspense, lazy }from "react";
 import {
     Container,
     Grid,
@@ -11,9 +11,11 @@ import {
     Radio,
     MenuItem,
     Select,
-    makeStyles } from "@material-ui/core";
+    makeStyles,
+    LinearProgress } from "@material-ui/core";
 import { blue } from "@material-ui/core/colors";
 import './Form.scss';
+const UserList = lazy(() => import("./UserList"));
 
 const useStyles = makeStyles((theme) => ({
     root: {
@@ -60,6 +62,10 @@ function Form() {
     const [phoneError, setphoneError] = useState(false);
     const [foodOption, setfoodOption] = useState('');
     const [open, setOpen] = useState(false);
+    const [userDetails, setUserDetails] = useState([]);
+    const [clearBtnDisable,setClearBtnDisable] =useState(true);
+    const [submitBtnDisable,setSubmitBtnDisable]=useState(true);
+    const [loading, setLoading] = React.useState(false);
 
     const validateEmail = (value) =>{
         let regex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
@@ -73,12 +79,12 @@ function Form() {
 
     const handleEmailChange = (event) => {
         var errorText = ''
+        setemail(event.target.value);
         if (!validateEmail(event.target.value)) {
             errorText = "Email Format Error"
             setemailErrorText(errorText);
             setemailError(true);
         }else{
-            setemail(event.target.value);
             setemailError(false);
         };   
     }
@@ -112,27 +118,76 @@ function Form() {
     };
 
     const firstNameChange = (event) => {
-        setfirstName(event.target.value)
+        setfirstName(event.target.value);
     }
 
     const lastNameChange = (event) => {
-        setlastName(event.target.value)
+        setlastName(event.target.value);
     }
 
     const dobChange = (event) => {
         setDob(event.target.value)
     }
-    
+    const handelClear = (event) =>{
+        setgender('');
+        setDob('');
+        setlastName('');
+        setfirstName('');
+        setfoodOption('');
+        settelNum('');
+        setemail('');
+    }
+    const isAllDetailNotPresent = telNum.length === 0 ||
+    email.length === 0 ||
+    firstName.length === 0 ||
+    lastName.length === 0 ||
+    dob.length === 0 || foodOption.length === 0 || gender.length === 0;
 
+    const validateInputs = (event) => {
+        event.preventDefault();
+        
+        let isValid = true;
+        setClearBtnDisable(true)
+        if (
+            isAllDetailNotPresent
+        ) {
+          isValid = false;
+        } else {
+          isValid = true;
+        }
+    
+        if (isValid) {
+            setClearBtnDisable(false);
+            handleSaveData();
+        }
+      };
+      const handleSaveData = () => {
+          const userDetail = {FirstName:firstName,
+                               LastName:lastName,
+                               Email:email,
+                               TelNumber:telNum,
+                               DateOfBirth:dob,
+                               Gender:gender,
+                               FoodOption:foodOption
+                            }
+        setUserDetails([...userDetails,userDetail]);
+      };
+
+    const handelFormChange =() =>{
+        if (isAllDetailNotPresent){
+            setSubmitBtnDisable(true)
+        }else{setSubmitBtnDisable(false)}
+    }
     const classes = useStyles();
     return (
         <Container className={classes.root} fixed>
-            <form noValidate autoComplete="off">
+            <form noValidate autoComplete="off" onSubmit={validateInputs} onChange={handelFormChange}>
                 <Grid container spacing={1}>
                     <Grid item sm={6} xs={12}>
                         <TextField
                             id="firstname"
                             label="First name"
+                            value={firstName}
                             onChange= {firstNameChange}
                         />
                     </Grid>
@@ -140,6 +195,7 @@ function Form() {
                         <TextField
                             id="lastname"
                             label="Last name"
+                            value={lastName}
                             onChange= {lastNameChange}
                         />
                     </Grid>
@@ -150,6 +206,7 @@ function Form() {
                             type="date"
                             className={classes.textField}
                             onChange={dobChange}
+                            value={dob}
                             InputLabelProps={{
                             shrink: true,
                             }}
@@ -158,8 +215,8 @@ function Form() {
                     <Grid item sm={6} xs={12}>
                         <FormLabel component="legend" className={classes.radioField}>Gender</FormLabel>
                         <RadioGroup aria-label="gender"name="gender1"row  value={gender} onChange={handleGenderChange}>
-                            <FormControlLabel value="male" control={<Radio />} label="Female" />
-                            <FormControlLabel value="female" control={<Radio />} label="Male" />
+                            <FormControlLabel value="male" control={<Radio />} label="Male" />
+                            <FormControlLabel value="female" control={<Radio />} label="Female" />
                             <FormControlLabel value="other" control={<Radio />} label="Other" />
                         </RadioGroup>
                     </Grid>
@@ -167,6 +224,7 @@ function Form() {
                         <TextField
                             id="Phonenumber"
                             label="Phone-Number"
+                            value={telNum}
                             error={phoneError}
                             helperText={phoneError ? telErrorText : ''}
                             onChange={(event)=>handlePhoneChange(event)}
@@ -175,6 +233,7 @@ function Form() {
                     <Grid item sm={6} xs={12}>
                         <TextField
                             error={emailError}
+                            value={email}
                             id="email"
                             helperText={emailError ? emailErrorText : ''}
                             label="Email-id"
@@ -200,13 +259,52 @@ function Form() {
                 </Grid>
                 <Grid  
                     container
-                    direction="column"
+                    direction="row"
                     justify="center"
                     alignItems="center"
                 >
-                <Button variant="contained" size="large" color="primary" className={classes.button} disableElevation>Submit</Button>
+                <Button variant="contained" size="large" color="primary" type="submit" className={classes.button} disableElevation disabled={submitBtnDisable}>Submit</Button>
+                </Grid>
+                <Grid
+                    container
+                    direction="row"
+                    justify="center"
+                    alignItems="center"
+                 >            
+                    <Button
+                        id="btnClear"
+                        size="large"
+                        className={classes.button}
+                        onClick={handelClear}
+                        variant="contained" 
+                        disabled={clearBtnDisable}
+                    >
+                    Clear
+                    </Button>
                 </Grid>
             </form>
+            <div id="results">
+        <Suspense
+          fallback={
+            <div className={classes.placeholder}>
+              {loading ? <LinearProgress /> : ""}
+            </div>
+          }
+        >
+          {userDetails ? (
+            userDetails.map((resultItem) => {
+              return (
+                <UserList
+                  key={`key-${resultItem.email}`}
+                  data={resultItem}
+                />
+              );
+            })
+          ) : (
+            <div>No items found</div>
+          )}
+        </Suspense>
+      </div>
         </Container>
     );
 }
